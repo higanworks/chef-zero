@@ -44,8 +44,8 @@ module ChefZero
       end
 
       def get(path, request=nil)
-        hkey, key = split_path(path)
-        @redis.hget(hkey.join("/").chop, key)
+        hkey, field = split_path(path)
+        @redis.hget(hkey.join("/").chop, field)
       end
 
       def set(path, data, *options)
