@@ -18,6 +18,7 @@
 require 'chef_zero/data_store/data_already_exists_error'
 require 'chef_zero/data_store/data_not_found_error'
 require 'chef_zero/data_store/interface_v2'
+require 'chef/json_compat'
 require 'redis'
 
 module ChefZero
@@ -38,45 +39,44 @@ module ChefZero
       end
 
       def create(path, name, data, *options)
-        raise_up(self)
-        raise_up
+        hkey = [path, Chef::JSONCompat.parse(data)["chef_type"]].flatten.join("/")
+        @redis.hset(hkey, name, data)
       end
 
       def get(path, request=nil)
-        raise_up(path, request)
+        hkey, key = split_path(path)
+        @redis.hget(hkey.join("/").chop, key)
       end
 
       def set(path, data, *options)
         raise_up(self)
-        raise_up
       end
 
       def delete(path)
-        raise_up(self)
-        raise_up
+        raise_up(path)
       end
 
       def delete_dir(path, *options)
         raise_up(self)
-        raise_up
       end
 
       def list(path)
         raise_up(self)
-        raise_up
       end
 
       def exists?(path, options = {})
         raise_up(self)
-        raise_up
       end
 
       def exists_dir?(path)
         raise_up(path)
-        raise_up
       end
 
       private
+      def split_path(path)
+        [path, path.pop]
+      end
+
       def raise_up(*args)
         raise
       rescue => e
