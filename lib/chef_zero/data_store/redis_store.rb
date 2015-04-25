@@ -61,7 +61,7 @@ module ChefZero
       end
 
       def list(path)
-        raise_up(self)
+        @redis.hkeys(path.join("/").chop)
       end
 
       def exists?(path, options = {})
