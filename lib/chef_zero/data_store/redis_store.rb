@@ -32,6 +32,7 @@ module ChefZero
       attr_reader :data
 
       def clear
+        @redis.flushdb
       end
 
       def create_dir(path, name, *options)
@@ -39,14 +40,20 @@ module ChefZero
       end
 
       def create(path, name, data, *options)
-        data_type = _data_type_to_path(Chef::JSONCompat.parse(data)["chef_type"])
-        hkey = [path, data_type].flatten.compact.join("/")
-        @redis.hset(hkey, name, data)
+        if path.length < 3
+          data_type = _data_type_to_path(Chef::JSONCompat.parse(data)["chef_type"])
+          hkey = [path, data_type].flatten.compact.join("/")
+          @redis.hset(hkey, name, data)
+        else
+          @redis.hset(path.join("/"), name, data)
+        end
       end
 
       def get(path, request=nil)
         hkey, field = _split_path(path)
-        @redis.hget(hkey.join("/"), field)
+        data = @redis.hget(hkey.join("/"), field)
+        raise DataNotFoundError.new(path) unless data
+        data
       end
 
       def set(path, data, *options)
@@ -73,6 +80,7 @@ module ChefZero
 
       def exists_dir?(path)
         raise_up(path)
+        true
       end
 
       private
@@ -81,7 +89,7 @@ module ChefZero
       end
 
       def _data_type_to_path(type)
-        if %w[environment role node client].include?(type)
+        if %w[environment role node client user].include?(type)
           type + "s"
         else
           type
