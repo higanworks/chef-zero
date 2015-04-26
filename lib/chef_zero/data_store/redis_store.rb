@@ -39,17 +39,20 @@ module ChefZero
       end
 
       def create(path, name, data, *options)
-        hkey = [path, Chef::JSONCompat.parse(data)["chef_type"]].flatten.join("/")
+        data_type = _data_type_to_path(Chef::JSONCompat.parse(data)["chef_type"])
+        hkey = [path, data_type].flatten.compact.join("/")
         @redis.hset(hkey, name, data)
       end
 
       def get(path, request=nil)
-        hkey, field = split_path(path)
-        @redis.hget(hkey.join("/").chop, field)
+        hkey, field = _split_path(path)
+        @redis.hget(hkey.join("/"), field)
       end
 
       def set(path, data, *options)
-        raise_up(self)
+        hkey, field = _split_path(path)
+        @redis.hset(hkey.join("/"), field, data)
+        raise_up(path, data, *options)
       end
 
       def delete(path)
@@ -61,7 +64,7 @@ module ChefZero
       end
 
       def list(path)
-        @redis.hkeys(path.join("/").chop)
+        @redis.hkeys(path.join("/"))
       end
 
       def exists?(path, options = {})
@@ -73,8 +76,16 @@ module ChefZero
       end
 
       private
-      def split_path(path)
+      def _split_path(path)
         [path, path.pop]
+      end
+
+      def _data_type_to_path(type)
+        if %w[environment role node client].include?(type)
+          type + "s"
+        else
+          type
+        end
       end
 
       def raise_up(*args)
