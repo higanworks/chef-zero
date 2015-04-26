@@ -27,7 +27,8 @@ module ChefZero
     end
 
     def rest_path
-      @rest_path ||= rest_base_prefix + env['PATH_INFO'].split('/').select { |part| part != "" }
+      # @rest_path ||= rest_base_prefix + env['PATH_INFO'].split('/').select { |part| part != "" }
+      rest_base_prefix + env['PATH_INFO'].split('/').select { |part| part != "" }
     end
 
     def body=(body)

@@ -62,8 +62,10 @@ module ChefZero
         raise_up(path, data, *options)
       end
 
-      def delete(path)
-        raise_up(path)
+      def delete(path, *options)
+        hkey, field = _split_path(path)
+        raise DataStore::DataNotFoundError unless @redis.hexists(hkey.join("/"), field)
+        @redis.hdel(hkey.join("/"), field)
       end
 
       def delete_dir(path, *options)
