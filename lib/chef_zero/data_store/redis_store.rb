@@ -24,9 +24,9 @@ require 'redis'
 module ChefZero
   module DataStore
     class RedisStore < ChefZero::DataStore::InterfaceV2
-      def initialize(opts = {})
-        @redis = Redis.new(opts)
-        clear
+      def initialize(flushdb = false, redis_opts = {})
+        @redis = Redis.new(redis_opts)
+        clear if flushdb
       end
 
       attr_reader :data
@@ -36,7 +36,8 @@ module ChefZero
       end
 
       def create_dir(path, name, *options)
-        raise_up(self)
+        puts "Called >> create_dir"
+        raise_up(path, name, *options)
       end
 
       def create(path, name, data, *options)
@@ -59,29 +60,34 @@ module ChefZero
       def set(path, data, *options)
         hkey, field = _split_path(path)
         @redis.hset(hkey.join("/"), field, data)
-        raise_up(path, data, *options)
       end
 
       def delete(path, *options)
         hkey, field = _split_path(path)
-        raise DataStore::DataNotFoundError unless @redis.hexists(hkey.join("/"), field)
+        raise DataStore::DataNotFoundError.new(path) unless @redis.hexists(hkey.join("/"), field)
         @redis.hdel(hkey.join("/"), field)
       end
 
       def delete_dir(path, *options)
-        raise_up(self)
+        # puts "Called >> delete_dir"
+        # raise_up(path, *options)
+        true
       end
 
       def list(path)
-        @redis.hkeys(path.join("/"))
+        if %w[cookbooks data].include?(path.last) && path.length < 4
+          @redis.keys(path.join("/") + "/*").map {|key| key.split("/").last }
+        else
+          @redis.hkeys(path.join("/"))
+        end
       end
 
       def exists?(path, options = {})
-        raise_up(self)
+        hkey, field = _split_path(path)
+        @redis.hexists(hkey.join("/"), field)
       end
 
       def exists_dir?(path)
-        raise_up(path)
         true
       end
 
