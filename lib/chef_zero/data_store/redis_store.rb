@@ -93,6 +93,7 @@ module ChefZero
       end
 
       def exists_dir?(path)
+        return true path.length < 3
         return true if @redis.hlen(path.join("/")) > 0
         false
       end
