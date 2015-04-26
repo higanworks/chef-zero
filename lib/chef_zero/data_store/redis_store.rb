@@ -100,7 +100,7 @@ module ChefZero
 
       private
       def _split_path(path)
-        [path, path.pop]
+        [path[0..-2], path.last]
       end
 
       def _data_type_to_path(type)
