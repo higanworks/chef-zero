@@ -24,6 +24,10 @@ require 'redis'
 module ChefZero
   module DataStore
     class RedisStore < ChefZero::DataStore::InterfaceV2
+      # Usage:
+      # require 'chef_zero'; require 'chef_zero/server'; require 'chef_zero/data_store/redis_store'
+      # ChefZero::Server.new(data_store: ChefZero::DataStore::DefaultFacade.new(ChefZero::DataStore::RedisStore.new, "chef", true)).start
+
       def initialize(flushdb = false, redis_opts = {})
         @redis = Redis.new(redis_opts)
         clear if flushdb
@@ -36,8 +40,9 @@ module ChefZero
       end
 
       def create_dir(path, name, *options)
-        puts "Called >> create_dir"
-        raise_up(path, name, *options)
+        return true
+        # puts "Called >> create_dir"
+        # raise_up(path, name, *options)
       end
 
       def create(path, name, data, *options)
@@ -88,7 +93,8 @@ module ChefZero
       end
 
       def exists_dir?(path)
-        true
+        return true if @redis.hlen(path.join("/")) > 0
+        false
       end
 
       private
@@ -112,8 +118,6 @@ module ChefZero
         puts "=========="
         puts e.backtrace
         exit
-        # require 'chef_zero'; require 'chef_zero/server'; require 'chef_zero/data_store/redis_store'
-        # ChefZero::Server.new(data_store: ChefZero::DataStore::RedisStore.new).start
       end
     end
   end
