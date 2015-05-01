@@ -40,13 +40,21 @@ module ChefZero
       end
 
       def create_dir(path, name, *options)
+        verbose_entry("===In: create_dir #{path.to_s} ++ #{name} ++ #{options.to_s}")
+        if %w[data].include?(path.last) && path.count('data') == 1
+          raise DataAlreadyExistsError.new(path + [name]) if @redis.hexists(path.join("/"), name)
+          @redis.hset(path.join("/"), name, "data bag dir entry")
+        end
         return true
       end
 
       def create(path, name, data, *options)
-        verbose_entry("===In: create #{path.to_s} ++ #{name}")
+        verbose_entry("===In: create #{path.to_s} ++ #{name} ++ #{options.to_s}")
         if %w[users clients nodes roles environments data].include?(path.last)
           raise DataAlreadyExistsError.new(path + [name]) if @redis.hexists(path.join("/"), name)
+        end
+        if %w[data].include?(path[-2]) && path[0..-2].count('data') == 1
+          raise DataNotFoundError.new(path) unless @redis.hexists(path[0..-2].join("/"), path[-1])
         end
         @redis.hset(path.join("/"), name, data)
       end
@@ -66,14 +74,22 @@ module ChefZero
       end
 
       def delete(path, *options)
-        verbose_entry("===In: delete #{path.to_s}")
+        verbose_entry("===In: delete #{path.to_s} ++ #{options.to_s}")
         hkey, field = _split_path(path)
         raise DataStore::DataNotFoundError.new(path) unless @redis.hexists(hkey.join("/"), field)
         @redis.hdel(hkey.join("/"), field)
       end
 
       def delete_dir(path, *options)
-        true
+        verbose_entry("===In: delete_dir #{path.to_s} ++ #{options.to_s}")
+        if %w[data].include?(path[-2]) && path.count('data') == 1
+          hkey, field = _split_path(path)
+          verbose_entry("===In: delete_dir(data) #{hkey.to_s} ++ #{field.to_s}")
+          @redis.hdel(hkey.join("/"), field)
+          true
+        else
+          true
+        end
       end
 
       def list(path)
@@ -81,24 +97,28 @@ module ChefZero
         if %w[cookbooks].include?(path.last) && path.length < 4
           data = @redis.keys(path.join("/") + "/*").map {|key| key.split("/").last }
           raise DataNotFoundError.new(path) if data.empty?
-          data
-        elsif path.include?("data") && path.length < 5
+        elsif path[-2] == 'data' && path.count('data') == 1 || path[-3] == 'acl'
+          hkey, field = _split_path(path)
+          data = @redis.hkeys(hkey.join("/"))
+          raise DataNotFoundError.new(path) if data.empty?
+        elsif path[-3] == 'data' || path[-4] == 'acl'
           data = @redis.keys(path.join("/") + "/*").map {|key| key.split("/").last }
-          data
         else
           data = @redis.hkeys(path.join("/"))
           raise DataNotFoundError.new(path) if data.empty?
-          data
         end
+        verbose_entry("===In: list(data) #{data.to_s}")
+        data
       end
 
       def exists?(path, options = {})
+        verbose_entry("===In: exists? #{path.to_s}")
         hkey, field = _split_path(path)
         @redis.hexists(hkey.join("/"), field)
       end
 
       def exists_dir?(path)
-        verbose_entry("===In: exists_dir #{path.to_s}")
+        verbose_entry("===In: exists_dir? #{path.to_s}")
         return true if path.length < 3
         return true if @redis.hlen(path.join("/")) > 0
         false
@@ -120,6 +140,11 @@ module ChefZero
       def verbose_entry(str)
         ## For debug with pedant.
         puts str if ENV['VERBOSE']
+      end
+
+      def debug_all_keys
+        ## For debug with pedant.
+        puts ("==== (debug all keys) #{@redis.keys('*').to_s}") if ENV['VERBOSE']
       end
     end
   end
